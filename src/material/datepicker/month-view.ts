@@ -518,9 +518,45 @@ export class MatMonthView<D> implements AfterContentInit, OnChanges, OnDestroy {
   /** Creates MatCalendarCells for the dates in this month. */
   private _createWeekCells() {
     const daysInMonth = this._dateAdapter.getNumDaysInMonth(this.activeDate);
+    const firstOfMonth = this._dateAdapter.createDate(
+      this._dateAdapter.getYear(this.activeDate),
+      this._dateAdapter.getMonth(this.activeDate),
+      1,
+    );
+    const firstDayOfWeek = this._dateAdapter.getDayOfWeek(firstOfMonth);
+    const daysInPrevMonth = firstDayOfWeek > 0 ? firstDayOfWeek : 0;
+    const prevMonth = this._dateAdapter.addCalendarMonths(firstOfMonth, -1);
+    const daysInPrevMonthActual = this._dateAdapter.getNumDaysInMonth(prevMonth);
+    
     const dateNames = this._dateAdapter.getDateNames();
     this._weeks = [[]];
-    for (let i = 0, cell = this._firstWeekOffset; i < daysInMonth; i++, cell++) {
+    
+    // Add days from the previous month
+    for (let i = daysInPrevMonthActual - daysInPrevMonth + 1; i <= daysInPrevMonthActual; i++) {
+      const date = this._dateAdapter.createDate(
+        this._dateAdapter.getYear(prevMonth),
+        this._dateAdapter.getMonth(prevMonth),
+        i,
+      );
+      const enabled = this._shouldEnableDate(date);
+      const ariaLabel = this._dateAdapter.format(date, this._dateFormats.display.dateA11yLabel);
+      const cellClasses = this.dateClass ? this.dateClass(date, 'month') : undefined;
+  
+      this._weeks[0].push(
+        new MatCalendarCell<D>(
+          i,
+          dateNames[i - 1],
+          ariaLabel,
+          enabled,
+          cellClasses,
+          this._getCellCompareValue(date)!,
+          date,
+        ),
+      );
+    }
+  
+    // Add days of the current month
+    for (let i = 0, cell = daysInPrevMonth; i < daysInMonth; i++, cell++) {
       if (cell == DAYS_PER_WEEK) {
         this._weeks.push([]);
         cell = 0;
@@ -533,7 +569,7 @@ export class MatMonthView<D> implements AfterContentInit, OnChanges, OnDestroy {
       const enabled = this._shouldEnableDate(date);
       const ariaLabel = this._dateAdapter.format(date, this._dateFormats.display.dateA11yLabel);
       const cellClasses = this.dateClass ? this.dateClass(date, 'month') : undefined;
-
+  
       this._weeks[this._weeks.length - 1].push(
         new MatCalendarCell<D>(
           i + 1,
@@ -545,6 +581,33 @@ export class MatMonthView<D> implements AfterContentInit, OnChanges, OnDestroy {
           date,
         ),
       );
+    }
+  
+    // Add days from the next month to fill the last week
+    const nextMonth = this._dateAdapter.addCalendarMonths(firstOfMonth, 1);
+    let dayCounter = 1;
+    while (this._weeks[this._weeks.length - 1].length < DAYS_PER_WEEK) {
+      const date = this._dateAdapter.createDate(
+        this._dateAdapter.getYear(nextMonth),
+        this._dateAdapter.getMonth(nextMonth),
+        dayCounter,
+      );
+      const enabled = this._shouldEnableDate(date);
+      const ariaLabel = this._dateAdapter.format(date, this._dateFormats.display.dateA11yLabel);
+      const cellClasses = this.dateClass ? this.dateClass(date, 'month') : undefined;
+  
+      this._weeks[this._weeks.length - 1].push(
+        new MatCalendarCell<D>(
+          dayCounter,
+          dateNames[dayCounter - 1],
+          ariaLabel,
+          enabled,
+          cellClasses,
+          this._getCellCompareValue(date)!,
+          date,
+        ),
+      );
+      dayCounter++;
     }
   }
 
